@@ -208,9 +208,156 @@ public class BPlusTree {
     private String deleteFromLeafNode(Integer key, LeafNode node,
                                       Deque<InnerNode> parents) {
         // TODO: delete value from leaf node (and propagate changes up)
+        String value = lookupInLeafNode(key, node);
+        removeFromLeafNode(key, node);
 
+        // easy steal when node is at least capacity+1 -> no changes, simply return deleted key's value
+        if (getNodeSize(node) >= BPlusTreeUtilities.CAPACITY/2) {
+            return value;
+        }
+
+        // node is underfilled after deletion
+        if (!parents.isEmpty()) {
+            InnerNode parent = parents.pop();
+            // steal
+            if (checkSibling(parent, node, true)) return value;
+            // merge
+            if (checkSibling(parent, node, false)) return value; // merge shouldnt return false, if it does sth is wrong...
+        }
 
         return null;
+    }
+    private int getNodeSize(Node node) {
+        List<Integer> keys = new ArrayList<>(Arrays.asList(node.getKeys()));
+        int counter = 0;
+
+        for (Integer key: keys) {
+            if (key != null) counter++;
+        }
+        return counter;
+    }
+
+    private void removeFromLeafNode(Integer key, LeafNode node) {
+        List<Integer> keys = new ArrayList<>(Arrays.asList(node.getKeys()));
+        List<String> values = new ArrayList<>(Arrays.asList(node.getValues()));
+
+        int pos = findPosition(keys, key);
+        keys.remove(pos);
+        values.remove(pos);
+
+        node.setKeys(keys.toArray(new Integer[0]));
+        node.setValues(values.toArray(new String[0]));
+    }
+
+    private int findPosition(List<Integer> keys, Integer key) {
+        for (int i = 0; i < keys.size(); i++) {
+            if (keys.get(i) == null) break; // this should never occur, not possible due to if condition
+            if (keys.get(i).equals(key)) {
+                return i;
+            }
+        }
+        return keys.size()-1; // Insert at the end when key bigger than all keys
+    }
+
+    private Boolean checkSibling(InnerNode parent, Node currentNode, Boolean isSteal) {
+        List<Node> children = new ArrayList<>(Arrays.asList(parent.getChildren()));
+        int currentIdx = -1;
+
+        for (int i = 0; i < children.size(); i++) {
+            if (children.get(i) == null) break;
+            if (children.get(i) == currentNode) {
+                currentIdx = i;
+                break;
+            }
+        }
+
+        if (isSteal) {
+            // check left sibling
+            if (currentIdx > 0) {
+                Node leftSibling = children.get(currentIdx - 1);
+                if (stealFromSibling(leftSibling, currentNode, parent, currentIdx, true)) {
+                    return true;
+                }
+            }
+
+            // check right sibling
+            if (currentIdx < children.size() - 1) {
+                Node rightSibling = children.get(currentIdx + 1);
+                if (stealFromSibling(rightSibling, currentNode, parent, currentIdx, false)) {
+                    return true;
+                }
+            }
+        }
+        else { // merge
+            // check right sibling
+            if (currentIdx < children.size() - 1) {
+                Node rightSibling = children.get(currentIdx + 1);
+                mergeWithSibling(rightSibling, currentNode, parent, currentIdx, true);
+                return true;
+            }
+
+            // check left sibling
+            if (currentIdx > 0) {
+                Node leftSibling = children.get(currentIdx - 1);
+                mergeWithSibling(leftSibling, currentNode, parent, currentIdx, false);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean stealFromSibling(Node sibling, Node currentNode, InnerNode parent, int currentIdx, boolean isLeftSibling) {
+        int size = getNodeSize(sibling);
+
+        // only steal when sibling has more than the minimum keys (capacity/2+1)
+        if (size > BPlusTreeUtilities.CAPACITY / 2) {
+            List<Integer> siblingKeys = new ArrayList<>(Arrays.asList(sibling.getKeys()));
+            List<Integer> currentKeys = new ArrayList<>(Arrays.asList(currentNode.getKeys()));
+
+            String value = null;
+            int idx = isLeftSibling ? size - 1 : 0; // when left sibling, take last key, when right take first key
+
+            // remove key from sibling
+            Integer key = siblingKeys.remove(idx);
+            sibling.setKeys(siblingKeys.toArray(new Integer[0]));
+            int insertPos = findInsertPosition(currentKeys, key);
+
+            if (currentNode instanceof LeafNode) {
+                List<String> siblingValues = new ArrayList<>(Arrays.asList(((LeafNode) sibling).getValues()));
+                value = siblingValues.remove(idx);
+                ((LeafNode) sibling).setValues(siblingValues.toArray(new String[0]));
+            }
+
+            // add key to the current node
+            currentKeys.add(insertPos, key);
+            currentNode.setKeys(currentKeys.toArray(new Integer[0]));
+
+            if (currentNode instanceof LeafNode && value != null) {
+                List<String> currentValues = new ArrayList<>(Arrays.asList(((LeafNode) currentNode).getValues()));
+                currentValues.add(insertPos, value);
+                ((LeafNode) currentNode).setValues(currentValues.toArray(new String[0]));
+            }
+
+            // update the parent
+            List<Integer> parentKeys = new ArrayList<>(Arrays.asList(parent.getKeys()));
+            if (isLeftSibling) {
+                int updatePos = findInsertPosition(parentKeys, key);
+                parentKeys.set(updatePos, key);
+            } else {
+                int siblingKey = sibling.getKeys()[0];
+                if (currentIdx == 0) currentIdx++;
+                parentKeys.set(currentIdx-1, siblingKey);
+            }
+            parent.setKeys(parentKeys.toArray(new Integer[0]));
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private void mergeWithSibling(Node sibling, Node currentNode, InnerNode parent, int currentIdx, boolean isRightSibling) {
+
     }
 
     ///// Public API

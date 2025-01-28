@@ -416,4 +416,37 @@ public class BPlusTreeTest {
                                newLeaf(keys(5, 6), values("e", "f")))))));
     }
 
+    @Test
+    public void deleteFromChildStealFromLeftSibling() {
+        // given
+        tree = newTree(newNode(keys(5, 10),
+                nodes(newLeaf(keys(1, 2, 3), values("1", "2", "3")),
+                        newLeaf(keys(5, 6), values("5","6")),
+                        newLeaf(keys(15, 16), values("15", "16")))));
+        // when
+        String value = tree.delete(6);
+        // then
+        assertThat(value, is("6"));
+        assertThat(tree, isTree(newTree(newNode(keys(3, 10),
+                nodes(newLeaf(keys(1, 2), values("1", "2")),
+                        newLeaf(keys(3, 5), values("3","5")),
+                        newLeaf(keys(15, 16), values("15", "16")))))));
+    }
+
+    @Test
+    public void deleteFrom2d() { // TODO
+        // given
+        tree = newTree(newNode(keys(3, 5),
+                nodes(newLeaf(keys(1, 2), values("a", "b")),
+                        newLeaf(keys(3, 4), values("c", "d")),
+                        newLeaf(keys(5, 6), values("e", "f")))));
+        // when
+        String value = tree.delete(2);
+        // then
+        assertThat(value, is("b"));
+        assertThat(tree, isTree(newTree(newNode(
+                keys(5), nodes(newLeaf(keys(1, 4), values("a", "d")),
+                        newLeaf(keys(5, 6), values("e", "f")))))));
+    }
+
 }

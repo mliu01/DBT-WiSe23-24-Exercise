@@ -104,7 +104,7 @@ public class BPlusTree {
             node.setValues(lValues.toArray(new String[0]));
 
             // create new leaf node for right child node
-            LeafNode rNode = new LeafNode(rKeys.toArray(new Integer[0]), rValues.toArray(new String[0]), BPlusTreeUtilities.CAPACITY);
+            LeafNode rNode = new LeafNode(rKeys.toArray(new Integer[0]), rValues.toArray(new String[0]), this.capacity);
             // propagate split to the parents, splitKey is the first key in the right leaf node (leaf node exception)
             propagateToParents(rKeys.get(0), node, rNode, parents);
         }
@@ -157,7 +157,7 @@ public class BPlusTree {
         // we keep the leftNode in case we have to add it as a child of the root
         if (parents.isEmpty()) {
             // new root if there's no parent: split reached the root
-            InnerNode newRoot = new InnerNode(BPlusTreeUtilities.CAPACITY);
+            InnerNode newRoot = new InnerNode(this.capacity);
             newRoot.setKeys(new Integer[]{splitKey});
             newRoot.setChildren(new Node[]{leftNode,rightNode});
 
@@ -199,7 +199,7 @@ public class BPlusTree {
         lNode.setChildren(lChildren.toArray(new Node[0]));
 
         // create new inner node for right half
-        InnerNode rNode = new InnerNode(rKeys.toArray(new Integer[0]), rChildren.toArray(new Node[0]), BPlusTreeUtilities.CAPACITY);
+        InnerNode rNode = new InnerNode(rKeys.toArray(new Integer[0]), rChildren.toArray(new Node[0]), this.capacity);
 
         // propagate the split key (= middle key m) to the parent
         propagateToParents(keys.get(splitPoint), lNode, rNode, parents);
@@ -209,21 +209,20 @@ public class BPlusTree {
                                       Deque<InnerNode> parents) {
         // TODO: delete value from leaf node (and propagate changes up)
         String value = lookupInLeafNode(key, node);
+        if (value == null) return null;
         removeFromLeafNode(key, node);
 
         // easy steal when node is at least capacity+1 -> no changes, simply return deleted key's value
-        if (getNodeSize(node) >= BPlusTreeUtilities.CAPACITY/2) {
+        if (getNodeSize(node) >= this.capacity/2 || parents.isEmpty()) {
             return value;
         }
 
         // node is underfilled after deletion
-        if (!parents.isEmpty()) {
-            InnerNode parent = parents.pop();
-            // steal
-            if (checkSibling(parent, node, true)) return value;
-            // merge
-            if (checkSibling(parent, node, false)) return value; // merge shouldnt return false, if it does sth is wrong...
-        }
+        InnerNode parent = parents.pop();
+        // steal
+        if (checkSibling(parent, node, true)) return value;
+        // merge
+        if (checkSibling(parent, node, false)) return value; // merge shouldnt return false, if it does sth is wrong...
 
         return null;
     }
@@ -292,11 +291,15 @@ public class BPlusTree {
             // check right sibling
             if (currentIdx < children.size() - 1) {
                 Node rightSibling = children.get(currentIdx + 1);
-                mergeWithSibling(rightSibling, currentNode, parent, currentIdx, true);
-                return true;
+                if (rightSibling != null) {
+                    if (nodeHasSpace(rightSibling)) {
+                        mergeWithSibling(rightSibling, currentNode, parent, currentIdx, true);
+                        return true;
+                    }
+                }
             }
 
-            // check left sibling
+            // check left sibling -> "worse" case, last resort
             if (currentIdx > 0) {
                 Node leftSibling = children.get(currentIdx - 1);
                 mergeWithSibling(leftSibling, currentNode, parent, currentIdx, false);
@@ -307,10 +310,12 @@ public class BPlusTree {
     }
 
     private boolean stealFromSibling(Node sibling, Node currentNode, InnerNode parent, int currentIdx, boolean isLeftSibling) {
+        if (sibling == null) return false;
+
         int size = getNodeSize(sibling);
 
         // only steal when sibling has more than the minimum keys (capacity/2+1)
-        if (size > BPlusTreeUtilities.CAPACITY / 2) {
+        if (size > this.capacity / 2) {
             List<Integer> siblingKeys = new ArrayList<>(Arrays.asList(sibling.getKeys()));
             List<Integer> currentKeys = new ArrayList<>(Arrays.asList(currentNode.getKeys()));
 
@@ -357,7 +362,77 @@ public class BPlusTree {
     }
 
     private void mergeWithSibling(Node sibling, Node currentNode, InnerNode parent, int currentIdx, boolean isRightSibling) {
+        List<Integer> siblingKeys = new ArrayList<>(Arrays.asList(sibling.getKeys()));
+        List<Node> children = new ArrayList<>(Arrays.asList(parent.getChildren()));
+        List<Integer> parentKeys = new ArrayList<>(Arrays.asList(parent.getKeys()));
 
+        if (isRightSibling) {
+            // merge with right sibling
+            Integer key = currentNode.getKeys()[0];
+            siblingKeys.add(0, key);
+            sibling.setKeys(siblingKeys.toArray(new Integer[0]));
+
+            if (currentNode instanceof LeafNode) {
+                List<String> currentValues = new ArrayList<>(Arrays.asList(((LeafNode) currentNode).getValues()));
+                List<String> siblingValues = new ArrayList<>(Arrays.asList(((LeafNode) sibling).getValues()));
+
+                siblingValues.add(0, currentValues.get(0));
+                ((LeafNode) sibling).setValues(siblingValues.toArray(new String[0]));
+            }
+
+            // Update parent
+            children.remove(currentNode);
+            parent.setChildren(children.toArray(new Node[0]));
+            parentKeys.remove(currentIdx);
+            parent.setKeys(moveNullsToEnd(parentKeys.toArray(new Integer[0])));
+
+        } else {
+            // merge with left sibling
+            Integer key = currentNode.getKeys()[0];
+            int insertPos = findInsertPosition(siblingKeys, key);
+            siblingKeys.add(insertPos, key);
+            sibling.setKeys(siblingKeys.toArray(new Integer[0]));
+
+            if (currentNode instanceof LeafNode) {
+                List<String> currentValues = new ArrayList<>(Arrays.asList(((LeafNode) currentNode).getValues()));
+                List<String> siblingValues = new ArrayList<>(Arrays.asList(((LeafNode) sibling).getValues()));
+
+                siblingValues.add(insertPos, currentValues.get(0));
+                ((LeafNode) sibling).setValues(siblingValues.toArray(new String[0]));
+            }
+
+            // update parent
+            children.remove(currentNode);
+            parent.setChildren(children.toArray(new Node[0]));
+            // if (currentIdx == parentKeys.size()) currentIdx--; // shouldnt even be possible i think, if u have a right sibling u cant be in the last branch
+            parentKeys.remove(currentIdx - 1);
+            parent.setKeys(moveNullsToEnd(parentKeys.toArray(new Integer[0])));
+        }
+
+        // handle case where parent becomes empty
+        if (getNodeSize(parent) == 0) {
+            this.root = sibling;
+        }
+    }
+
+    private Integer[] moveNullsToEnd(Integer[] array) {
+        List<Integer> nonNulls = new ArrayList<>();
+        int nullCount = 0;
+
+        for (Integer elem : array) {
+            if (elem != null) {
+                nonNulls.add(elem);
+            } else {
+                nullCount++;
+            }
+        }
+
+        // Add nulls to the end
+        for (int i = 0; i < nullCount; i++) {
+            nonNulls.add(null);
+        }
+
+        return nonNulls.toArray(new Integer[0]);
     }
 
     ///// Public API

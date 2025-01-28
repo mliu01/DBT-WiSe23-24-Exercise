@@ -401,7 +401,7 @@ public class BPlusTreeTest {
     }
 
     @Test
-    public void deleteFromChildMergeWithSibling() {
+    public void deleteFromChildMergeWithSiblingRight() {
         // given
         tree = newTree(newNode(keys(3, 5),
                                nodes(newLeaf(keys(1, 2), values("a", "b")),
@@ -414,6 +414,36 @@ public class BPlusTreeTest {
         assertThat(tree, isTree(newTree(newNode(
                 keys(5), nodes(newLeaf(keys(1, 3, 4), values("a", "c", "d")),
                                newLeaf(keys(5, 6), values("e", "f")))))));
+    }
+
+    @Test
+    public void deleteFromChildMergeWithSiblingLeft() {
+        // given
+        tree = newTree(newNode(keys(3, 5),
+                nodes(newLeaf(keys(1, 2), values("a", "b")),
+                        newLeaf(keys(3, 4), values("c", "d")),
+                        newLeaf(keys(5, 6), values("e", "f")))));
+        // when
+        String value = tree.delete(6);
+        // then
+        assertThat(value, is("f"));
+        assertThat(tree, isTree(newTree(newNode(
+                keys(3), nodes(newLeaf(keys(1, 2), values("a", "b")),
+                        newLeaf(keys(3, 4, 5), values("c", "d", "e")))))));
+    }
+
+    @Test
+    public void deleteFromChildMergeWithSiblingLeftTillRoot() {
+        // given
+        tree = newTree(newNode(keys(118),
+                nodes(newLeaf(keys(91, 107), values("a", "b")),
+                        newLeaf(keys(118, 128), values("e", "f")))));
+        // when
+        String value = tree.delete(128);
+        // then
+        assertThat(value, is("f"));
+        assertThat(tree, isTree(newTree(newLeaf(
+                keys(91,107,118), values("a", "b", "e")))));
     }
 
     @Test
@@ -434,19 +464,44 @@ public class BPlusTreeTest {
     }
 
     @Test
-    public void deleteFrom2d() { // TODO
+    public void deleteFromLeafWith1Element() {
         // given
-        tree = newTree(newNode(keys(3, 5),
-                nodes(newLeaf(keys(1, 2), values("a", "b")),
-                        newLeaf(keys(3, 4), values("c", "d")),
-                        newLeaf(keys(5, 6), values("e", "f")))));
+        tree = newTree(newLeaf(
+                        keys(91), values("a")));
         // when
-        String value = tree.delete(2);
+        String value = tree.delete(91);
         // then
-        assertThat(value, is("b"));
-        assertThat(tree, isTree(newTree(newNode(
-                keys(5), nodes(newLeaf(keys(1, 4), values("a", "d")),
-                        newLeaf(keys(5, 6), values("e", "f")))))));
+        assertThat(value, is("a"));
+        assertThat(tree, isTree(newEmptyTree()));
     }
+
+    @Test
+    public void deleteWithNonExistingKey() {
+        // given
+        tree = newTree(newLeaf(
+                keys(91,99,101,105), values("a","b","c","d")));
+        // when
+        String value = tree.delete(134);
+        // then
+        // assertThat(value, null);
+        assertThat(tree, isTree(newTree(newLeaf(
+                keys(91,99,101,105), values("a","b","c","d")))));
+    }
+
+//    @Test
+//    public void deleteFrom2d() { // TODO
+//        // given
+//        tree = newTree(newNode(keys(3, 5),
+//                nodes(newLeaf(keys(1, 2), values("a", "b")),
+//                        newLeaf(keys(3, 4), values("c", "d")),
+//                        newLeaf(keys(5, 6), values("e", "f")))));
+//        // when
+//        String value = tree.delete(2);
+//        // then
+//        assertThat(value, is("b"));
+//        assertThat(tree, isTree(newTree(newNode(
+//                keys(5), nodes(newLeaf(keys(1, 4), values("a", "d")),
+//                        newLeaf(keys(5, 6), values("e", "f")))))));
+//    }
 
 }

@@ -147,7 +147,7 @@ public class BPlusTreeTest {
     }
 
     @Test
-    public void insertInto2dExampleFullLeafNodeRightWithFullParents() {
+    public void insertInto2dExampleWithFullParents() {
         // given
         tree = newTree(newNode(keys(51),
                 nodes(newNode(keys(11,30),
@@ -170,26 +170,45 @@ public class BPlusTreeTest {
     }
 
     @Test
-    public void insertInto2dExampleFullLeafNodeRightWithFullRoot() { // TODO
+    public void insertInto2dExampleFullRoot() {
         // given
-        tree = newTree(newNode(keys(51,71,78),
+        tree = newTree(newNode(keys(51,71,90,150),
                 nodes(newNode(keys(11,30),
                                 nodes(newLeaf(keys(2,7), values("2", "7")), newLeaf(keys(12,15,22), values("12", "15", "22")), newLeaf(keys(35,41), values("35", "41")))),
                         newNode(keys(63,66),
                                 nodes(newLeaf(keys(53,54), values("53", "54")), newLeaf(keys(63,64,65), values("63","64","65")), newLeaf(keys(68,69), values("68", "69")))),
-                        newNode(keys(73, 75, 78, 93, 95),
-                                nodes(newLeaf(keys(71,72), values("71", "72")), newLeaf(keys(73,74), values("73","74")), newLeaf(keys(75,76,77), values("75","76","77")), newLeaf(keys(79,84), values("79", "84")), newLeaf(keys(93,94), values("93","94")), newLeaf(keys(95, 96, 97), values("95","96","97"))))
+                        newNode(keys(73, 78, 83, 85),
+                                nodes(newLeaf(keys(71,72), values("71", "72")), newLeaf(keys(73,74), values("73","74")), newLeaf(keys(78,79,80,81), values("78","79","80", "81")), newLeaf(keys(83,84), values("83", "84")), newLeaf(keys(85,86), values("85","86")))),
+                        newNode(keys(100, 125),
+                                nodes(newLeaf(keys(95, 96, 97), values("95","96","97")), newLeaf(keys(105, 110, 111), values("105","110","111")), newLeaf(keys(125, 130, 132), values("125","130","132")))),
+                        newNode(keys(150, 200),
+                                nodes(newLeaf(keys(140, 141, 142), values("140","141","142")), newLeaf(keys(150, 160, 165, 170), values("150","160","165", "170")), newLeaf(keys(200, 300), values("200","300"))))
                 )));
         // when
-        tree.insert(72, "72");
+        tree.insert(82, "82");
         // then
         assertThat(tree, isTree(
-                newTree(newNode(keys(51),
-                        nodes(newNode(keys(11,30),
-                                        nodes(newLeaf(keys(2,7), values("2", "7")), newLeaf(keys(12,15,22), values("12", "15", "22")), newLeaf(keys(35,41), values("35", "41")))),
-                                newNode(keys(66,71,78),
-                                        nodes(newLeaf(keys(53,54,63), values("53", "54","63")), newLeaf(keys(68,69), values("68", "69")), newLeaf(keys(71,72,76), values("71", "72", "76")), newLeaf(keys(79,84,93), values("79", "84", "93"))))
-                        )))));
+                newTree(newNode(keys(80), nodes(
+                        newNode(keys(51,71),
+                                nodes(newNode(keys(11,30),
+                                                nodes(newLeaf(keys(2,7), values("2", "7")), newLeaf(keys(12,15,22), values("12", "15", "22")), newLeaf(keys(35,41), values("35", "41")))),
+                                        newNode(keys(63,66),
+                                                nodes(newLeaf(keys(53,54), values("53", "54")), newLeaf(keys(63,64,65), values("63","64","65")), newLeaf(keys(68,69), values("68", "69")))),
+                                        newNode(keys(73, 78),
+                                                nodes(newLeaf(keys(71,72), values("71", "72")), newLeaf(keys(73,74), values("73","74")), newLeaf(keys(78,79), values("78","79"))))
+                                        )),
+                        newNode(keys(90,150),
+                                nodes(newNode(keys(83, 85),
+                                                nodes(newLeaf(keys(80,81,82), values("80","81","82")), newLeaf(keys(83,84), values("83", "84")), newLeaf(keys(85,86), values("85","86")))),
+                                        newNode(keys(100, 125),
+                                                nodes(newLeaf(keys(95, 96, 97), values("95","96","97")), newLeaf(keys(105, 110, 111), values("105","110","111")), newLeaf(keys(125, 130, 132), values("125","130","132")))),
+                                        newNode(keys(150, 200),
+                                                nodes(newLeaf(keys(140, 141, 142), values("140","141","142")), newLeaf(keys(150, 160, 165, 170), values("150","160","165", "170")), newLeaf(keys(200, 300), values("200","300"))))
+                                ))
+                        ))
+
+                )
+        ));
     }
 
     @Test
@@ -302,7 +321,7 @@ public class BPlusTreeTest {
                                                 )
                                         ),
                                         newNode(
-                                                keys(95, 200),
+                                                keys(95, 150),
                                                 nodes(
                                                         newNode(
                                                                 keys(83, 88),

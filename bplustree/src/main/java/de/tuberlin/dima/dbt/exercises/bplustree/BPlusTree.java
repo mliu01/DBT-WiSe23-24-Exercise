@@ -99,13 +99,13 @@ public class BPlusTree {
             List<Integer> rKeys = keys.subList(splitPoint, keys.size());
             List<String> rValues = values.subList(splitPoint, values.size());
 
-            // Current Node becomes left child
+            // current Node is the left child
             node.setKeys(lKeys.toArray(new Integer[0]));
             node.setValues(lValues.toArray(new String[0]));
 
-            // Create new leaf node for right child node
+            // create new leaf node for right child node
             LeafNode rNode = new LeafNode(rKeys.toArray(new Integer[0]), rValues.toArray(new String[0]), BPlusTreeUtilities.CAPACITY);
-            // propagate split to the parents, splitKey is the first key in the right child node
+            // propagate split to the parents, splitKey is the first key in the right leaf node (leaf node exception)
             propagateToParents(rKeys.get(0), node, rNode, parents);
         }
     }
@@ -154,6 +154,7 @@ public class BPlusTree {
     }
 
     private void propagateToParents(Integer splitKey, Node leftNode, Node rightNode, Deque<InnerNode> parents) {
+        // we keep the leftNode in case we have to add it as a child of the root
         if (parents.isEmpty()) {
             // new root if there's no parent: split reached the root
             InnerNode newRoot = new InnerNode(BPlusTreeUtilities.CAPACITY);
@@ -164,59 +165,51 @@ public class BPlusTree {
             return;
         }
 
-        // Get the parent node from the stack.
+        // get parent node from stack
         InnerNode parent = parents.pop();
 
         if (nodeHasSpace(parent)) {
             fillInnerNode(splitKey, parent, rightNode);
         } else {
-            // Parent is full, so split and propagate further.
+            // Parent is full, split and propagate further
             splitInnerNode(parent, splitKey, rightNode, parents);
         }
 
     }
 
-    private void splitInnerNode(InnerNode node, Integer splitKey, Node newChild, Deque<InnerNode> parents) {
-        // Combine keys and children into a single structure.
-        List<Integer> keys = new ArrayList<>(Arrays.asList(node.getKeys()));
-        List<Node> children = new ArrayList<>(Arrays.asList(node.getChildren()));
+    private void splitInnerNode(InnerNode lNode, Integer splitKey, Node newChild, Deque<InnerNode> parents) {
+        // add splitKey to overflow
+        List<Integer> keys = new ArrayList<>(Arrays.asList(lNode.getKeys()));
+        List<Node> children = new ArrayList<>(Arrays.asList(lNode.getChildren()));
 
         int indexToInsert = findInsertPosition(keys, splitKey);
         keys.add(indexToInsert, splitKey);
         children.add(indexToInsert + 1, newChild);
 
-        // Split the keys and children.
+        // split the keys and children without middle key (ignore key at index splitPoint)
         int splitPoint = keys.size() / 2;
 
         List<Integer> lKeys = keys.subList(0, splitPoint);
         List<Node> lChildren = children.subList(0, splitPoint + 1);
-        List<Integer> rKeys = keys.subList(splitPoint+1, keys.size());
-        List<Node> rChildren = children.subList(splitPoint+1, children.size());
+        List<Integer> rKeys = keys.subList(splitPoint + 1, keys.size());
+        List<Node> rChildren = children.subList(splitPoint + 1, children.size());
 
-        if (rKeys.size() != rChildren.size()-1) {
-            splitPoint = splitPoint + 1;
-            rKeys = keys.subList(splitPoint + 1, keys.size());
-            rChildren = children.subList(splitPoint + 1, children.size());
-        }
+        // update current node with the left half
+        lNode.setKeys(lKeys.toArray(new Integer[0]));
+        lNode.setChildren(lChildren.toArray(new Node[0]));
 
-        // Update the current node with the left half.
-        node.setKeys(lKeys.toArray(new Integer[0]));
-        node.setChildren(lChildren.toArray(new Node[0]));
+        // create new inner node for right half
+        InnerNode rNode = new InnerNode(rKeys.toArray(new Integer[0]), rChildren.toArray(new Node[0]), BPlusTreeUtilities.CAPACITY);
 
-        // Create a new inner node for the right half.
-        InnerNode newInnerNode = new InnerNode(rKeys.toArray(new Integer[0]), rChildren.toArray(new Node[0]), BPlusTreeUtilities.CAPACITY);
-
-        // Propagate the split key to the parent. // if parents empty, give splitKey -> for new root, if not give rKeys position 0
-        if (parents.isEmpty()) {
-            propagateToParents(keys.get(splitPoint), node, newInnerNode, parents);
-        } else {
-            propagateToParents(rKeys.get(0), node, newInnerNode, parents);
-        }
+        // propagate the split key (= middle key m) to the parent
+        propagateToParents(keys.get(splitPoint), lNode, rNode, parents);
     }
 
     private String deleteFromLeafNode(Integer key, LeafNode node,
                                       Deque<InnerNode> parents) {
         // TODO: delete value from leaf node (and propagate changes up)
+
+
         return null;
     }
 
